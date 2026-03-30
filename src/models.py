@@ -1,7 +1,6 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field
 from enum import Enum
 from datetime import date
-from typing import Optional
 
 class ClaimStatus(str, Enum):
     pending = "pending"
@@ -9,28 +8,21 @@ class ClaimStatus(str, Enum):
     rejected = "rejected"
 
 class Policy(BaseModel):
-    id: int
-    policy_number: str
-    policy_holder: str
-    policy_type: str
-    start_date: date
-    end_date: date
-
-    @validator('start_date')
-    def start_date_must_be_before_end_date(cls, v, values):
-        if 'end_date' in values and v >= values['end_date']:
-            raise ValueError('start_date must be before end_date')
-        return v
+    id: int = Field(..., title="Policy ID")
+    policy_number: str = Field(..., title="Policy Number")
+    policyholder_name: str = Field(..., title="Policyholder Name")
+    policy_start_date: date = Field(..., title="Policy Start Date")
+    policy_end_date: date = Field(..., title="Policy End Date")
 
 class Claim(BaseModel):
-    id: int
-    policy_id: int
-    claim_date: date
-    claim_amount: float
-    status: ClaimStatus = ClaimStatus.pending
+    id: int = Field(..., title="Claim ID")
+    policy_id: int = Field(..., title="Policy ID")
+    claim_date: date = Field(..., title="Claim Date")
+    claim_amount: float = Field(..., title="Claim Amount", ge=0)
+    status: ClaimStatus = Field(..., title="Claim Status")
 
 class Payment(BaseModel):
-    id: int
-    claim_id: int
-    payment_date: date
-    payment_amount: float
+    id: int = Field(..., title="Payment ID")
+    claim_id: int = Field(..., title="Claim ID")
+    payment_date: date = Field(..., title="Payment Date")
+    payment_amount: float = Field(..., title="Payment Amount", ge=0)

@@ -6,80 +6,73 @@ from datetime import date
 client = TestClient(app)
 
 def test_create_claim():
-    claim = {
+    claim_data = {
         "id": 1,
         "policy_id": 1,
-        "claim_date": "2020-01-01",
-        "claim_amount": 1000.0,
+        "claim_date": "2022-01-01",
+        "claim_amount": 100.0,
         "status": "pending"
     }
-    response = client.post("/claims/", json=claim)
+    response = client.post("/claims/", json=claim_data)
     assert response.status_code == 201
-    assert response.json() == claim
+    assert response.json() == claim_data
 
 def test_get_all_claims():
-    claim1 = {
+    claim_data = {
         "id": 1,
         "policy_id": 1,
-        "claim_date": "2020-01-01",
-        "claim_amount": 1000.0,
+        "claim_date": "2022-01-01",
+        "claim_amount": 100.0,
         "status": "pending"
     }
-    claim2 = {
-        "id": 2,
-        "policy_id": 2,
-        "claim_date": "2020-01-01",
-        "claim_amount": 2000.0,
-        "status": "pending"
-    }
-    client.post("/claims/", json=claim1)
-    client.post("/claims/", json=claim2)
+    client.post("/claims/", json=claim_data)
     response = client.get("/claims/")
     assert response.status_code == 200
-    assert len(response.json()) == 2
+    assert len(response.json()) == 1
+    assert response.json()[0] == claim_data
 
 def test_get_claim_by_id():
-    claim = {
+    claim_data = {
         "id": 1,
         "policy_id": 1,
-        "claim_date": "2020-01-01",
-        "claim_amount": 1000.0,
+        "claim_date": "2022-01-01",
+        "claim_amount": 100.0,
         "status": "pending"
     }
-    client.post("/claims/", json=claim)
+    client.post("/claims/", json=claim_data)
     response = client.get("/claims/1")
     assert response.status_code == 200
-    assert response.json() == claim
+    assert response.json() == claim_data
 
 def test_update_claim():
-    claim = {
+    claim_data = {
         "id": 1,
         "policy_id": 1,
-        "claim_date": "2020-01-01",
-        "claim_amount": 1000.0,
+        "claim_date": "2022-01-01",
+        "claim_amount": 100.0,
         "status": "pending"
     }
-    updated_claim = {
+    client.post("/claims/", json=claim_data)
+    updated_claim_data = {
         "id": 1,
         "policy_id": 1,
-        "claim_date": "2020-01-01",
-        "claim_amount": 2000.0,
+        "claim_date": "2022-01-01",
+        "claim_amount": 150.0,
         "status": "approved"
     }
-    client.post("/claims/", json=claim)
-    response = client.put("/claims/1", json=updated_claim)
+    response = client.put("/claims/1", json=updated_claim_data)
     assert response.status_code == 200
-    assert response.json() == updated_claim
+    assert response.json() == updated_claim_data
 
 def test_delete_claim():
-    claim = {
+    claim_data = {
         "id": 1,
         "policy_id": 1,
-        "claim_date": "2020-01-01",
-        "claim_amount": 1000.0,
+        "claim_date": "2022-01-01",
+        "claim_amount": 100.0,
         "status": "pending"
     }
-    client.post("/claims/", json=claim)
+    client.post("/claims/", json=claim_data)
     response = client.delete("/claims/1")
     assert response.status_code == 204
 
@@ -88,14 +81,14 @@ def test_get_non_existent_claim():
     assert response.status_code == 404
 
 def test_update_non_existent_claim():
-    claim = {
+    claim_data = {
         "id": 1,
         "policy_id": 1,
-        "claim_date": "2020-01-01",
-        "claim_amount": 1000.0,
+        "claim_date": "2022-01-01",
+        "claim_amount": 100.0,
         "status": "pending"
     }
-    response = client.put("/claims/1", json=claim)
+    response = client.put("/claims/1", json=claim_data)
     assert response.status_code == 404
 
 def test_delete_non_existent_claim():

@@ -13,6 +13,8 @@ async def get_claims():
 
 @router.post("/", response_model=Claim, status_code=201)
 async def create_claim(claim: Claim):
+    if claim.id in claims:
+        raise HTTPException(status_code=400, detail="Claim ID already exists")
     claims[claim.id] = claim
     return claim
 

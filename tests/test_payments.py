@@ -6,73 +6,67 @@ from datetime import date
 client = TestClient(app)
 
 def test_create_payment():
-    payment = {
+    payment_data = {
         "id": 1,
         "claim_id": 1,
-        "payment_date": "2020-01-01",
-        "payment_amount": 1000.0
+        "payment_date": "2022-01-01",
+        "payment_amount": 100.0
     }
-    response = client.post("/payments/", json=payment)
+    response = client.post("/payments/", json=payment_data)
     assert response.status_code == 201
-    assert response.json() == payment
+    assert response.json() == payment_data
 
 def test_get_all_payments():
-    payment1 = {
+    payment_data = {
         "id": 1,
         "claim_id": 1,
-        "payment_date": "2020-01-01",
-        "payment_amount": 1000.0
+        "payment_date": "2022-01-01",
+        "payment_amount": 100.0
     }
-    payment2 = {
-        "id": 2,
-        "claim_id": 2,
-        "payment_date": "2020-01-01",
-        "payment_amount": 2000.0
-    }
-    client.post("/payments/", json=payment1)
-    client.post("/payments/", json=payment2)
+    client.post("/payments/", json=payment_data)
     response = client.get("/payments/")
     assert response.status_code == 200
-    assert len(response.json()) == 2
+    assert len(response.json()) == 1
+    assert response.json()[0] == payment_data
 
 def test_get_payment_by_id():
-    payment = {
+    payment_data = {
         "id": 1,
         "claim_id": 1,
-        "payment_date": "2020-01-01",
-        "payment_amount": 1000.0
+        "payment_date": "2022-01-01",
+        "payment_amount": 100.0
     }
-    client.post("/payments/", json=payment)
+    client.post("/payments/", json=payment_data)
     response = client.get("/payments/1")
     assert response.status_code == 200
-    assert response.json() == payment
+    assert response.json() == payment_data
 
 def test_update_payment():
-    payment = {
+    payment_data = {
         "id": 1,
         "claim_id": 1,
-        "payment_date": "2020-01-01",
-        "payment_amount": 1000.0
+        "payment_date": "2022-01-01",
+        "payment_amount": 100.0
     }
-    updated_payment = {
+    client.post("/payments/", json=payment_data)
+    updated_payment_data = {
         "id": 1,
         "claim_id": 1,
-        "payment_date": "2020-01-01",
-        "payment_amount": 2000.0
+        "payment_date": "2022-01-01",
+        "payment_amount": 150.0
     }
-    client.post("/payments/", json=payment)
-    response = client.put("/payments/1", json=updated_payment)
+    response = client.put("/payments/1", json=updated_payment_data)
     assert response.status_code == 200
-    assert response.json() == updated_payment
+    assert response.json() == updated_payment_data
 
 def test_delete_payment():
-    payment = {
+    payment_data = {
         "id": 1,
         "claim_id": 1,
-        "payment_date": "2020-01-01",
-        "payment_amount": 1000.0
+        "payment_date": "2022-01-01",
+        "payment_amount": 100.0
     }
-    client.post("/payments/", json=payment)
+    client.post("/payments/", json=payment_data)
     response = client.delete("/payments/1")
     assert response.status_code == 204
 
@@ -81,13 +75,13 @@ def test_get_non_existent_payment():
     assert response.status_code == 404
 
 def test_update_non_existent_payment():
-    payment = {
+    payment_data = {
         "id": 1,
         "claim_id": 1,
-        "payment_date": "2020-01-01",
-        "payment_amount": 1000.0
+        "payment_date": "2022-01-01",
+        "payment_amount": 100.0
     }
-    response = client.put("/payments/1", json=payment)
+    response = client.put("/payments/1", json=payment_data)
     assert response.status_code == 404
 
 def test_delete_non_existent_payment():

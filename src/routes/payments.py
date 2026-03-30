@@ -13,6 +13,8 @@ async def get_payments():
 
 @router.post("/", response_model=Payment, status_code=201)
 async def create_payment(payment: Payment):
+    if payment.id in payments:
+        raise HTTPException(status_code=400, detail="Payment ID already exists")
     payments[payment.id] = payment
     return payment
 
