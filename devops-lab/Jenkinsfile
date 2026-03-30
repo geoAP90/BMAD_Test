@@ -176,7 +176,6 @@ SETUP
                         NEXUS_PYPI_URL="${NEXUS_URL}/repository/${NEXUS_PYPI_REPO}/"
                         echo "Uploading to Nexus PyPI: ${NEXUS_PYPI_URL}"
 
-                        # twine upload without --skip-existing (not supported by Nexus hosted repos)
                         twine upload \
                             --repository-url "${NEXUS_PYPI_URL}" \
                             --username "${NEXUS_USER}" \
