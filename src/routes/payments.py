@@ -4,7 +4,7 @@ from typing import List
 
 router = APIRouter()
 
-# In-memory storage
+# In-memory storage for payments
 payments = {}
 
 @router.get("/", response_model=List[Payment])
@@ -14,7 +14,7 @@ async def get_payments():
 @router.post("/", response_model=Payment, status_code=201)
 async def create_payment(payment: Payment):
     if payment.id in payments:
-        raise HTTPException(status_code=400, detail="Payment ID already exists")
+        raise HTTPException(status_code=400, detail="Payment with this ID already exists")
     payments[payment.id] = payment
     return payment
 
@@ -28,6 +28,8 @@ async def get_payment(id: int):
 async def update_payment(id: int, payment: Payment):
     if id not in payments:
         raise HTTPException(status_code=404, detail="Payment not found")
+    if payment.id != id:
+        raise HTTPException(status_code=400, detail="Payment ID mismatch")
     payments[id] = payment
     return payment
 
