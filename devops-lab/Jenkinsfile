@@ -170,30 +170,22 @@ SETUP
 
                         NEXUS_PYPI_URL="${NEXUS_URL}/repository/${NEXUS_PYPI_REPO}/"
 
-                        # Try twine upload first
-                        if command -v twine &>/dev/null; then
-                            twine upload \
-                                --repository-url "\${NEXUS_PYPI_URL}" \
-                                --username "\${NEXUS_USER}" \
-                                --password "\${NEXUS_PASS}" \
-                                --skip-existing \
-                                dist/* \
-                            && echo "Uploaded via twine" && exit 0
-                        fi
+                    sh """
+                        set -e
 
-                        # Fallback: curl upload each file
-                        for f in dist/*; do
-                            filename=\$(basename "\$f")
-                            echo "Uploading \$filename to Nexus..."
-                            curl -u "\${NEXUS_USER}:\${NEXUS_PASS}" \
-                                 --upload-file "\$f" \
-                                 "\${NEXUS_PYPI_URL}\$filename" \
-                            && echo "Uploaded: \$filename"
-                        done
+                        NEXUS_PYPI_URL="${NEXUS_URL}/repository/${NEXUS_PYPI_REPO}/"
+                        echo "Uploading to Nexus PyPI: ${NEXUS_PYPI_URL}"
 
-                        echo "Deploy complete: \${NEXUS_PYPI_URL}"
+                        # twine upload without --skip-existing (not supported by Nexus hosted repos)
+                        twine upload \
+                            --repository-url "${NEXUS_PYPI_URL}" \
+                            --username "${NEXUS_USER}" \
+                            --password "${NEXUS_PASS}" \
+                            --verbose \
+                            dist/*.whl
+
+                        echo "Deploy complete: ${NEXUS_PYPI_URL}"
                     """
-                }
             }
         }
     }
