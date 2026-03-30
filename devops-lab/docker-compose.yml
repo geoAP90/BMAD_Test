@@ -1,0 +1,88 @@
+services:
+  # --- THE FRONTEND: M365 PLAYGROUND ---
+  playground:
+    image: node:20-slim
+    container_name: playground-devops
+    ports:
+      - "56150:56150"
+    environment:
+      - BRIDGE_URL=http://host.docker.internal:3978/api/messages
+    # Corrected flags: The CLI uses --app-endpoint and --port
+    # We remove --host and --no-browser since they caused the crash
+    command: >
+      sh -c "npx -y @microsoft/m365agentsplayground start 
+      --port 56150 
+      --app-endpoint http://host.docker.internal:3978/api/messages"
+    networks:
+      - devops-network
+    restart: always
+  # --- THE CI/CD ENGINE ---
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins-devops
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - ./jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    networks:
+      - devops-network
+    restart: unless-stopped
+
+  # --- CODE QUALITY ---
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube-devops
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_JDBC_URL=jdbc:postgresql://db:5432/sonar
+      - SONAR_JDBC_USERNAME=sonar
+      - SONAR_JDBC_PASSWORD=sonar
+    networks:
+      - devops-network
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # --- ARTIFACT STORAGE ---
+  nexus:
+    image: sonatype/nexus3
+    container_name: nexus-devops
+    ports:
+      - "8081:8081"
+    volumes:
+      - nexus-data:/nexus-data
+    environment:
+      - INSTALL4J_ADD_VM_PARAMS=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m
+    networks:
+      - devops-network
+    restart: unless-stopped
+
+  # --- DATABASE ---
+  db:
+    image: postgres:13
+    container_name: postgres-devops
+    environment:
+      - POSTGRES_USER=sonar
+      - POSTGRES_PASSWORD=sonar
+      - POSTGRES_DB=sonar
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - devops-network
+    restart: unless-stopped
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  nexus-data:
+  postgres_data:
+
+networks:
+  devops-network:
+    driver: bridge

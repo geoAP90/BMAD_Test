@@ -1,0 +1,248 @@
+pipeline {
+    agent any
+
+    environment {
+        SONAR_PROJECT_KEY  = 'Insurance-Accelerator'
+        SONAR_PROJECT_NAME = 'Insurance Accelerator'
+        NEXUS_URL          = 'http://nexus-devops:8081'
+        NEXUS_REPOSITORY   = 'maven-releases_06'
+        APP_NAME           = 'insurance-accelerator'
+        APP_VERSION        = "1.0.${BUILD_NUMBER}"
+    }
+
+    stages {
+
+        // ── 1. Checkout ───────────────────────────────────────────────────────
+        stage('Checkout') {
+            steps {
+                echo "Using inline source generation — no SCM checkout needed."
+            }
+        }
+
+        // ── 2. Generate source (demo app — remove once real repo is wired) ───
+        stage('Generate Source') {
+            steps {
+                sh '''
+                    set -e
+
+                    # Create Maven project structure
+                    mkdir -p src/main/java/com/insurance
+                    mkdir -p src/test/java/com/insurance
+
+                    # Main class
+                    cat > src/main/java/com/insurance/App.java << 'JAVA'
+package com.insurance;
+
+public class App {
+    public static void main(String[] args) {
+        System.out.println("Insurance Accelerator v1.0");
+    }
+
+    public String processPolicy(String policyId) {
+        if (policyId == null || policyId.isEmpty()) {
+            throw new IllegalArgumentException("Policy ID cannot be empty");
+        }
+        return "PROCESSED-" + policyId.toUpperCase();
+    }
+
+    public double calculatePremium(int age, boolean hasHistory) {
+        double base = 1000.0;
+        if (age > 60) base *= 1.5;
+        if (hasHistory) base *= 1.3;
+        return base;
+    }
+}
+JAVA
+
+                    # Test class
+                    cat > src/test/java/com/insurance/AppTest.java << 'JAVA'
+package com.insurance;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class AppTest {
+    private final App app = new App();
+
+    @Test
+    public void testProcessPolicy() {
+        assertEquals("PROCESSED-POL123", app.processPolicy("pol123"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testProcessPolicyEmpty() {
+        app.processPolicy("");
+    }
+
+    @Test
+    public void testCalculatePremiumBase() {
+        double premium = app.calculatePremium(30, false);
+        assertEquals(1000.0, premium, 0.01);
+    }
+
+    @Test
+    public void testCalculatePremiumSenior() {
+        double premium = app.calculatePremium(65, false);
+        assertEquals(1500.0, premium, 0.01);
+    }
+
+    @Test
+    public void testCalculatePremiumSeniorWithHistory() {
+        double premium = app.calculatePremium(65, true);
+        assertEquals(1950.0, premium, 0.01);
+    }
+}
+JAVA
+
+                    # Maven POM
+                    cat > pom.xml << 'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.insurance</groupId>
+    <artifactId>insurance-accelerator</artifactId>
+    <version>1.0.BUILD_NUMBER_PLACEHOLDER</version>
+    <packaging>jar</packaging>
+    <name>Insurance Accelerator</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.2</version>
+            </plugin>
+        </plugins>
+    </build>
+
+    <distributionManagement>
+        <repository>
+            <id>nexus-releases</id>
+            <url>http://nexus-devops:8081/repository/maven-releases_06/</url>
+        </repository>
+    </distributionManagement>
+</project>
+XML
+
+                    # Inject real build number into pom.xml
+                    sed -i "s/BUILD_NUMBER_PLACEHOLDER/${BUILD_NUMBER}/" pom.xml
+
+                    echo "Source generation complete."
+                '''
+            }
+        }
+
+        // ── 3. Build & Test ───────────────────────────────────────────────────
+        stage('Build & Test') {
+            steps {
+                sh 'mvn clean test -B'
+            }
+            post {
+                always {
+                    echo "Tests completed — see console output above for results."
+                }
+            }
+        }
+
+        // ── 4. SonarQube Analysis ─────────────────────────────────────────────
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        mvn sonar:sonar -B \\
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \\
+                            -Dsonar.projectName="${SONAR_PROJECT_NAME}" \\
+                            -Dsonar.projectVersion=${APP_VERSION} \\
+                            -Dsonar.sources=src/main/java \\
+                            -Dsonar.tests=src/test/java \\
+                            -Dsonar.java.binaries=target/classes \\
+                            -Dsonar.coverage.exclusions=**/*Test*
+                    """
+                }
+            }
+        }
+
+        // ── 5. Quality Gate ───────────────────────────────────────────────────
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
+                }
+            }
+        }
+
+        // ── 6. Package ────────────────────────────────────────────────────────
+        stage('Package') {
+            steps {
+                sh 'mvn package -DskipTests -B'
+                echo "Artifact: target/insurance-accelerator-${APP_VERSION}.jar"
+            }
+        }
+
+        // ── 7. Deploy to Nexus ────────────────────────────────────────────────
+        stage('Deploy to Nexus') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'nexus-credentials',
+                    usernameVariable: 'NEXUS_USER',
+                    passwordVariable: 'NEXUS_PASS'
+                )]) {
+                    sh """
+                        # Write Maven settings with Nexus credentials
+                        mkdir -p ~/.m2
+                        cat > ~/.m2/settings.xml << SETTINGS
+<settings>
+  <servers>
+    <server>
+      <id>nexus-releases</id>
+      <username>${NEXUS_USER}</username>
+      <password>${NEXUS_PASS}</password>
+    </server>
+  </servers>
+</settings>
+SETTINGS
+
+                        # Deploy artifact to Nexus
+                        mvn deploy -DskipTests -B
+
+                        echo "Artifact deployed to ${NEXUS_URL}/repository/${NEXUS_REPOSITORY}/"
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline finished — Build #${BUILD_NUMBER}"
+            deleteDir()
+        }
+        success {
+            echo "SUCCESS: Insurance Accelerator v${APP_VERSION} built, scanned, and deployed."
+        }
+        failure {
+            echo "FAILED: Check stage logs above."
+        }
+    }
+}

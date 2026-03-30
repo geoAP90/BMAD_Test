@@ -1,0 +1,55 @@
+# BMAD DevOps Lab Configuration - Version 7.0 (Verified Sync)
+
+# Git Configuration
+git:
+  mode: local_cli 
+  user: geoAP90
+  repo: https://github.com/geoAP90/BMAD_Test.git
+  branch: main
+
+# Infrastructure Targets
+infrastructure:
+  jenkins:
+    url: http://localhost:8080
+    user: arpita 
+    api_token: ${JENKINS_API_TOKEN}
+  sonarqube:
+    url: http://localhost:9000
+    api_token: ${SONAR_TOKEN}
+  nexus:
+    url: http://localhost:8081
+    username: admin
+    # Pulls the password you just reset from your .env
+    password: ${NEXUS_PASSWORD}
+
+# TEA (Test Architect) Configuration
+tea:
+  quality_gate:
+    # Pulls 80 from your .env
+    sonarqube_threshold: ${SONAR_THRESHOLD} 
+    check_url: http://localhost:9000/api/qualitygates/project_status?projectKey=Insurance-Accelerator
+  nexus_verification:
+    # Dynamically targets maven-releases_06 from your .env
+    check_url: http://localhost:8081/service/rest/v1/components?repository=${NEXUS_REPOSITORY}
+    repository: ${NEXUS_REPOSITORY}
+
+# Automation Flow
+automation:
+  happy_flow:
+    enabled: true
+    steps:
+      - pm_phase: "Analyze Insurance Accelerator Vibe"
+      - arch_phase: "Validate infrastructure for Insurance Assets"
+      - dev_phase: "Trigger Jenkins Pipeline for Insurance-Accelerator"
+    jenkins_trigger:
+      method: curl
+      # Directs the agent to your specific Jenkins job
+      endpoint: http://localhost:8080/job/Insurance-Accelerator/build
+      auth: basic
+      user: arpita 
+
+# Bridge Configuration
+bridge:
+  port: 3978
+  endpoint: /api/messages
+  command_template: 'npx bmad-method implement --vibe "{message}"'
