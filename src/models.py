@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
-from enum import Enum
 from datetime import date
+from enum import Enum
 
 class ClaimStatus(str, Enum):
     pending = "pending"
@@ -10,10 +10,9 @@ class ClaimStatus(str, Enum):
 class Policy(BaseModel):
     id: int = Field(..., title="Policy ID")
     policy_number: str = Field(..., title="Policy Number")
-    policy_holder: str = Field(..., title="Policy Holder")
-    policy_type: str = Field(..., title="Policy Type")
-    start_date: date = Field(..., title="Start Date")
-    end_date: date = Field(..., title="End Date")
+    policyholder_name: str = Field(..., title="Policyholder Name")
+    policy_start_date: date = Field(..., title="Policy Start Date")
+    policy_end_date: date = Field(..., title="Policy End Date")
 
 class Claim(BaseModel):
     id: int = Field(..., title="Claim ID")

@@ -4,7 +4,7 @@ from typing import List
 
 router = APIRouter()
 
-# In-memory storage for policies
+# In-memory storage
 policies = {}
 
 @router.get("/", response_model=List[Policy])
@@ -14,7 +14,7 @@ async def get_policies():
 @router.post("/", response_model=Policy, status_code=201)
 async def create_policy(policy: Policy):
     if policy.id in policies:
-        raise HTTPException(status_code=400, detail="Policy with this ID already exists")
+        raise HTTPException(status_code=400, detail="Policy ID already exists")
     policies[policy.id] = policy
     return policy
 

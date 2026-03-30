@@ -4,7 +4,7 @@ from typing import List
 
 router = APIRouter()
 
-# In-memory storage for claims
+# In-memory storage
 claims = {}
 
 @router.get("/", response_model=List[Claim])
@@ -14,7 +14,7 @@ async def get_claims():
 @router.post("/", response_model=Claim, status_code=201)
 async def create_claim(claim: Claim):
     if claim.id in claims:
-        raise HTTPException(status_code=400, detail="Claim with this ID already exists")
+        raise HTTPException(status_code=400, detail="Claim ID already exists")
     claims[claim.id] = claim
     return claim
 
