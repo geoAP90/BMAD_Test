@@ -15,7 +15,8 @@ pipeline {
         // ── 1. Checkout ───────────────────────────────────────────────────────
         stage('Checkout') {
             steps {
-                echo "Using inline source generation — no SCM checkout needed."
+                echo "Checking out source..."
+                checkout scm
             }
         }
 
@@ -160,7 +161,8 @@ XML
             }
             post {
                 always {
-                    echo "Tests completed — see console output above for results."
+                    junit testResults: '**/target/surefire-reports/*.xml',
+                          allowEmptyResults: true
                 }
             }
         }
@@ -236,7 +238,7 @@ SETTINGS
     post {
         always {
             echo "Pipeline finished — Build #${BUILD_NUMBER}"
-            deleteDir()
+            cleanWs()
         }
         success {
             echo "SUCCESS: Insurance Accelerator v${APP_VERSION} built, scanned, and deployed."
