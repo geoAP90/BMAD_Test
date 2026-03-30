@@ -54,6 +54,9 @@ pipeline {
                 sh '''
                     set -e
 
+                    # Make src/ importable so conftest.py can do "from main import app"
+                    export PYTHONPATH="${WORKSPACE}/src:${WORKSPACE}:${PYTHONPATH}"
+
                     if [ -d tests ] || [ -d test ]; then
                         echo "Running pytest with coverage..."
                         python3 -m pytest tests/ -v \
@@ -61,7 +64,7 @@ pipeline {
                             --cov-report=xml:coverage.xml \
                             --cov-report=term-missing \
                             --junitxml=test-results.xml \
-                            2>&1 || python3 -m pytest . -v \
+                            2>&1 || python3 -m pytest tests/ -v \
                             --cov=. \
                             --cov-report=xml:coverage.xml \
                             --junitxml=test-results.xml
@@ -79,6 +82,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh """
+                        export PYTHONPATH="${WORKSPACE}/src:${WORKSPACE}:\${PYTHONPATH}"
                         # Write sonar properties
                         cat > sonar-project.properties << EOF
 sonar.projectKey=${SONAR_PROJECT_KEY}
