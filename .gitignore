@@ -1,0 +1,10 @@
+devops-lab/node_modules/
+devops-lab/.venv/
+devops-lab/venv/
+devops-lab/__pycache__/
+_bmad-output/
+.claude/
+.cline/
+.kiro/
+*.pyc
+.env

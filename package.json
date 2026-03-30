@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@hyperdrive.bot/bmad-workflow": "^1.0.30",
+    "@microsoft/m365agentsplayground": "^0.2.24",
+    "bmad-method": "^6.2.2"
+  }
+}
