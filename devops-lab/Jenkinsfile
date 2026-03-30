@@ -8,12 +8,10 @@ pipeline {
         NEXUS_PYPI_REPO    = 'pypi-releases'
         APP_NAME           = 'insurance-accelerator'
         APP_VERSION        = "1.0.${BUILD_NUMBER}"
-        PYTHON             = 'python3'
     }
 
     stages {
 
-        // ── 1. Checkout ───────────────────────────────────────────────────────
         stage('Checkout') {
             steps {
                 echo "Checking out from GitHub..."
@@ -21,17 +19,12 @@ pipeline {
             }
         }
 
-        // ── 2. Setup Python environment ───────────────────────────────────────
         stage('Setup Python') {
             steps {
                 sh '''
                     set -e
                     python3 --version
-
-                    # Install pip if needed
                     python3 -m ensurepip --upgrade 2>/dev/null || true
-
-                    # Install dependencies
                     if [ -f requirements.txt ]; then
                         pip3 install -r requirements.txt --break-system-packages
                     else
@@ -39,37 +32,25 @@ pipeline {
                             httpx pydantic coverage pytest-cov \
                             build wheel twine --break-system-packages
                     fi
-
-                    # Install sonar-scanner
-                    pip3 install pysonar-scanner 2>/dev/null || true
-
                     echo "Python environment ready."
                 '''
             }
         }
 
-        // ── 3. Run Tests (pytest + unittest) ─────────────────────────────────
         stage('Test') {
             steps {
                 sh '''
                     set -e
-
-                    # Make src/ importable so conftest.py can do "from main import app"
                     export PYTHONPATH="${WORKSPACE}/src:${WORKSPACE}:${PYTHONPATH}"
-
-                    if [ -d tests ] || [ -d test ]; then
+                    if [ -d tests ]; then
                         echo "Running pytest with coverage..."
                         python3 -m pytest tests/ -v \
                             --cov=src \
                             --cov-report=xml:coverage.xml \
                             --cov-report=term-missing \
-                            --junitxml=test-results.xml \
-                            2>&1 || python3 -m pytest tests/ -v \
-                            --cov=. \
-                            --cov-report=xml:coverage.xml \
                             --junitxml=test-results.xml
                     else
-                        echo "No tests directory found — skipping tests."
+                        echo "No tests directory — skipping."
                         echo '<?xml version="1.0"?><testsuites></testsuites>' > test-results.xml
                         echo '<?xml version="1.0"?><coverage></coverage>' > coverage.xml
                     fi
@@ -77,26 +58,11 @@ pipeline {
             }
         }
 
-        // ── 4. SonarQube Analysis ─────────────────────────────────────────────
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh """
                         export PYTHONPATH="${WORKSPACE}/src:${WORKSPACE}:\${PYTHONPATH}"
-                        # Write sonar properties
-                        cat > sonar-project.properties << EOF
-sonar.projectKey=${SONAR_PROJECT_KEY}
-sonar.projectName=${SONAR_PROJECT_NAME}
-sonar.projectVersion=${APP_VERSION}
-sonar.sources=src
-sonar.tests=tests
-sonar.python.coverage.reportPaths=coverage.xml
-sonar.python.xunit.reportPath=test-results.xml
-sonar.sourceEncoding=UTF-8
-sonar.language=py
-EOF
-
-                        # Run sonar-scanner
                         sonar-scanner \
                             -Dsonar.host.url=\${SONAR_HOST_URL} \
                             -Dsonar.token=\${SONAR_AUTH_TOKEN} \
@@ -107,14 +73,12 @@ EOF
                             -Dsonar.tests=tests \
                             -Dsonar.python.coverage.reportPaths=coverage.xml \
                             -Dsonar.python.xunit.reportPath=test-results.xml \
-                            -Dsonar.language=py \
-                        || echo "sonar-scanner not found, trying python sonar..."
+                            -Dsonar.language=py
                     """
                 }
             }
         }
 
-        // ── 5. Quality Gate ───────────────────────────────────────────────────
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
@@ -123,13 +87,10 @@ EOF
             }
         }
 
-        // ── 6. Package as wheel ───────────────────────────────────────────────
         stage('Package') {
             steps {
                 sh """
                     set -e
-
-                    # Create setup.py if not present
                     if [ ! -f setup.py ] && [ ! -f pyproject.toml ]; then
                         cat > setup.py << 'SETUP'
 from setuptools import setup, find_packages
@@ -137,27 +98,18 @@ setup(
     name='insurance-accelerator',
     version='${APP_VERSION}',
     packages=find_packages(),
-    install_requires=[
-        'fastapi',
-        'uvicorn',
-        'pydantic',
-    ],
+    install_requires=['fastapi', 'uvicorn', 'pydantic'],
 )
 SETUP
                     fi
-
-                    # Build wheel
                     python3 -m build --wheel --outdir dist/ 2>/dev/null || \
-                    python3 setup.py bdist_wheel --dist-dir dist/ 2>/dev/null || \
-                    (mkdir -p dist && zip -r dist/insurance_accelerator-${APP_VERSION}.zip src/ && echo "Created zip package")
-
+                    python3 setup.py bdist_wheel --dist-dir dist/
                     ls -la dist/
                     echo "Package built: ${APP_NAME} v${APP_VERSION}"
                 """
             }
         }
 
-        // ── 7. Deploy to Nexus PyPI ───────────────────────────────────────────
         stage('Deploy to Nexus') {
             steps {
                 withCredentials([usernamePassword(
@@ -167,24 +119,17 @@ SETUP
                 )]) {
                     sh """
                         set -e
-
                         NEXUS_PYPI_URL="${NEXUS_URL}/repository/${NEXUS_PYPI_REPO}/"
-
-                    sh """
-                        set -e
-
-                        NEXUS_PYPI_URL="${NEXUS_URL}/repository/${NEXUS_PYPI_REPO}/"
-                        echo "Uploading to Nexus PyPI: ${NEXUS_PYPI_URL}"
-
+                        echo "Uploading to Nexus: \${NEXUS_PYPI_URL}"
                         twine upload \
-                            --repository-url "${NEXUS_PYPI_URL}" \
-                            --username "${NEXUS_USER}" \
-                            --password "${NEXUS_PASS}" \
+                            --repository-url "\${NEXUS_PYPI_URL}" \
+                            --username "\${NEXUS_USER}" \
+                            --password "\${NEXUS_PASS}" \
                             --verbose \
                             dist/*.whl
-
-                        echo "Deploy complete: ${NEXUS_PYPI_URL}"
+                        echo "Deploy complete."
                     """
+                }
             }
         }
     }
@@ -195,7 +140,7 @@ SETUP
             deleteDir()
         }
         success {
-            echo "SUCCESS: ${APP_NAME} v${APP_VERSION} tested, scanned, and deployed."
+            echo "SUCCESS: ${APP_NAME} v${APP_VERSION} built, tested, scanned, deployed."
         }
         failure {
             echo "FAILED: Check stage logs above."
